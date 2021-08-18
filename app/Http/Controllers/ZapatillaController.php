@@ -3,6 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Zapatilla;
+use App\Models\RegistroVentas;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
+
 use Illuminate\Http\Request;
 
 /**
@@ -19,9 +23,28 @@ class ZapatillaController extends Controller
     public function index()
     {
         $zapatillas = Zapatilla::paginate();
-
-        return view('zapatilla.index', compact('zapatillas'))
-            ->with('i', (request()->input('page', 1) - 1) * $zapatillas->perPage());
+        $zapatillas = Zapatilla::select('codigo','url_imagen','precio_compra','precio_venta')
+        ->groupBy('codigo','url_imagen','precio_compra','precio_venta')->get();
+        // dd($zapatillas);
+      
+        foreach($zapatillas as $key => $zapatilla){
+            $zapatilla_orden = Zapatilla::where('codigo',$zapatilla['codigo'])
+            ->get();
+            // $zapatilla_orden = Zapatilla::where('codigo',$zapatilla['codigo'])
+            // ->filter(function ($item) {
+            //     return $item->cantidad>0;
+            // })->values();
+            // dd($zapatilla_orden->toArray());
+            $zapatilla_orden=$zapatilla_orden->filter(function ($item) {
+                    return $item->cantidad >=0;
+                })->values();
+            $zapatillas[$key]['zapatillas_modelos']=$zapatilla_orden;
+            // dd($zapatilla->precio_compra);
+        }
+        
+        // dd($zapatillas['url_imagen']);
+        // dd($zapatillas->toArray());
+        return view('zapatilla.index', compact('zapatillas'))   ;
     }
 
     /**
@@ -46,7 +69,6 @@ class ZapatillaController extends Controller
         request()->validate(Zapatilla::$rules);
 
         $zapatilla = Zapatilla::create($request->all());
-
         return redirect()->route('zapatillas.index')
             ->with('success', 'Zapatilla created successfully.');
     }
@@ -62,6 +84,43 @@ class ZapatillaController extends Controller
         $zapatilla = Zapatilla::find($id);
 
         return view('zapatilla.show', compact('zapatilla'));
+    }
+    public function search()
+    {
+        $zapatillas = Zapatilla::select('codigo','url_imagen','precio_compra','precio_venta')
+        ->where('codigo','LIKE','%'.$_GET['query'].'%')
+        ->groupBy('codigo','url_imagen','precio_compra','precio_venta')->get();
+      
+        foreach($zapatillas as $key => $zapatilla){
+            $zapatilla_orden = Zapatilla::where('codigo',$zapatilla['codigo'])->get();
+            $zapatillas[$key]['zapatillas_modelos']=$zapatilla_orden;
+        }
+        return view('zapatilla.index', compact('zapatillas'));
+    }
+
+    public function venta(Request $request, $id)
+    {
+        $zapatilla = Zapatilla::findOrFail($id);
+        if( $zapatilla->cantidad<=0){
+             return redirect()->route('zapatillas.index');
+        }
+        $zapatilla->cantidad =$zapatilla->cantidad -1; 
+        $zapatilla->save();
+        $request['zapatillas_id'] = $id;
+        $request['porcantaje_ganancia'] = $request->precio_venta - $zapatilla->precio_compra;
+        $request['fecha_venta'] = Carbon::now();
+        $registro = RegistroVentas::create($request->all());
+     
+        return redirect()->route('zapatillas.index');
+    }
+    public function editventa($id)
+    {
+        $zapatilla = Zapatilla::find($id);
+        $registro = new RegistroVentas();
+
+        return view('zapatilla.venta', compact('zapatilla'))
+        ->with(compact('registro'));
+        ;
     }
 
     /**

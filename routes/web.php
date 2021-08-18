@@ -21,4 +21,15 @@ Route::get('/', function () {
 Auth::routes();
 
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
-Route::resource('zapatillas',  App\Http\Controllers\ZapatillaController::class)->middleware('auth');
+Route::get('/zapatillas/search', [App\Http\Controllers\ZapatillaController::class, 'search'])->name('zapatillas.search');
+
+Route::resource('zapatillas',  App\Http\Controllers\ZapatillaController::class) ;
+Route::resource('ventas',  App\Http\Controllers\HistorialVentumController::class) ;
+Route::resource('registro-venta',  App\Http\Controllers\RegistroVentaController::class) ;
+
+Route::get('/zapatillas-registro/{id}', [App\Http\Controllers\ZapatillaController::class, 'editventa'])->name('zapatillas.venta');
+Route::PATCH('/zapatillas-venta/{id}', [App\Http\Controllers\ZapatillaController::class, 'venta'])->name('zapatillas.ventapost');
+
+
+
+// ->middleware('auth');
